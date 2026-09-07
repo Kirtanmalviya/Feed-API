@@ -1,9 +1,11 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_
 from app.database import get_db
 from app import models, schemas
 from app.oauth import  get_current_user
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 router = APIRouter(
     prefix="/users",
@@ -63,6 +65,82 @@ def delete_account(db: Session = Depends(get_db), current_user: models.Users = D
     db.delete(user)
     db.commit()
 
+@router.get("/{user_id}/posts", response_model=schemas.FeedResponse)
+def getUserPosts( # type: ignore
+    user_id: int,
+    limit: int = 10,
+    before_time: datetime | None = None,
+    db: Session = Depends(get_db)
+):
+
+    User = db.query(models.Users).filter(models.Users.user_id == user_id).first()
+    if not User:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    postsQuery = db.query(models.Posts).options(
+        selectinload(models.Posts.media)
+    ).filter(models.Posts.user_id == user_id)
+
+    if before_time:
+        postsQuery = postsQuery.filter(models.Posts.created_at < before_time)
+
+    userPosts = postsQuery.order_by(models.Posts.created_at.desc()).limit(limit + 1).all()
+
+    has_more = len(userPosts) > limit
+    if has_more:
+        userPosts = userPosts[:limit]
+
+    next_before_time = userPosts[-1].created_at if userPosts else None
+
+    return {
+        "posts": userPosts,
+        "has_more": has_more,
+        "next_before_time": next_before_time
+    } # type: ignore
+
+@router.get("/{user_id}/followers", response_model=schemas.FollowerListResponse)
+def getFollowers( # type: ignore
+    user_id: int,
+    limit: int = 15,
+    before_time: datetime | None = None,
+    db: Session = Depends(get_db)
+):
+
+    query = db.query(
+        models.Users.user_id, models.Users.username, models.Follows.created_at
+    ).join(
+        models.Follows, models.Follows.follower_id == models.Users.user_id
+    ).filter(
+        models.Follows.following_id == user_id
+    )
+
+    if before_time:
+        query = query.filter(
+            models.Follows.created_at < before_time
+        )
+
+    results = query.order_by(
+        models.Follows.created_at.desc()
+    ).limit(limit + 1).all()
+
+    has_more = len(results) > limit
+    if has_more: 
+        results = results[:limit]
+
+    return {
+    "followerList": results,
+    "has_more": has_more,
+    "next_before_time": results[-1].created_at if results else None
+} # type: ignore
     
+
+
+
+
+
+
+
+
+
 
 

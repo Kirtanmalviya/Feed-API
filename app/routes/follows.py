@@ -55,3 +55,45 @@ def follow_user(
     db.commit()
 
     return {"message": f"{current_user.user_id} follows {user2}"}
+
+@router.delete("follows/{user2}")
+def unfollowUser(
+    user2: int,
+    db: Session = Depends(get_db),
+    current_user: models.Users = Depends(get_current_user)
+):
+
+    user_2 = db.query(
+        models.Users
+        ).filter(
+            models.Users.user_id == user2
+        ).first()
+
+    if not user_2:
+        raise HTTPException(
+            status_code=404,
+            detail="User was not found"
+        )
+
+    checkBeforeUnfollow = db.query(models.Follows).filter(
+        models.Follows.follower_id == current_user.user_id,
+        models.Follows.following_id == user2
+    ).first()
+
+    if not checkBeforeUnfollow:
+        raise HTTPException(
+            status_code=409,
+            detail="the user was not followed by current user"
+        )
+
+    db.delete(checkBeforeUnfollow)
+    db.refresh(models.Follows)
+    db.commit()
+
+
+    return {"message": f"{current_user.user_id} unfollowed {user2}"}
+
+
+
+
+    

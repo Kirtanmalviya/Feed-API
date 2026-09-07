@@ -53,3 +53,10 @@ class FeedResponse(BaseModel):
     has_more: bool
     next_before_time: datetime | None = None
 
+class FollowerListResponse(BaseModel):
+    followerList: list[UserResponse]
+    has_more: bool
+    next_before_time: datetime | None = None
+
+    class Config:
+        from_attributes = True

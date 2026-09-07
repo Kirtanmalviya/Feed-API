@@ -49,3 +49,36 @@ def like_a_post(
     db.commit()
 
     return {"message": f"{current_user.user_id} like post with id: {body.post_id}"}
+
+
+@router.delete("/like/{post_id}")
+def unlikePost(
+    body: schemas.PostLike,
+    db: Session = Depends(get_db),
+    current_user: models.Users = Depends(get_current_user)
+):
+
+    Post = db.query(models.Posts).filter(models.Posts.id == body.post_id).first()
+
+    if not Post:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Post with id:{body.post_id} was not found"
+        )
+
+    checkBeforeUnlike = db.query(models.Likes).filter(
+        models.Likes.user_id == current_user.user_id,
+        models.Likes.post_id == body.post_id
+    ).first()
+
+    if not checkBeforeUnlike:
+        raise HTTPException(
+            status_code=409,
+            detail="the post wasn't liked by current user"
+        )
+
+    db.delete(checkBeforeUnlike)
+    db.refresh(models.Likes)
+    db.commit()
+
+    return {"message": f"post with id: {body.post_id} was unliked by user {current_user.user_id}."}
