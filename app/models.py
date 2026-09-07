@@ -1,6 +1,6 @@
 import enum
 from sqlalchemy import func, ForeignKey, Enum, CheckConstraint
-from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
+from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship
 from datetime import datetime
 
 class MediaStatus(enum.Enum):
@@ -22,6 +22,8 @@ class Users(Base):
 
     user_id: Mapped[int] = mapped_column(primary_key=True,nullable=False)
     username: Mapped[str] = mapped_column(unique=True,nullable=False)
+    email: Mapped[str] = mapped_column(unique=True, nullable=False)
+    hashed_password: Mapped[str] = mapped_column(nullable=False)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
 
 class Follows(Base):
@@ -57,6 +59,10 @@ class Posts(Base):
     caption: Mapped[str] = mapped_column(nullable=False)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(),nullable=False)
 
+    media: Mapped[list["PostMedia"]] = relationship(
+        back_populates = "post"
+    )
+
 class PostMedia(Base):
     __tablename__ = "postmedia"
 
@@ -75,6 +81,10 @@ class PostMedia(Base):
     )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(),nullable=False)
 
+    post: Mapped["Posts"] = relationship(
+        back_populates="media"
+    )
+
 class Likes(Base):
     __tablename__ = "likes"
 
@@ -89,6 +99,3 @@ class Likes(Base):
         nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(),nullable=False)
-
-
-    
